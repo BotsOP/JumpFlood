@@ -56,6 +56,36 @@ public class JumpFlood
 
         return resultTexture;
     }
+    
+    public CustomRenderTexture JumpFloodDistance(RenderTexture startTexture)
+    {
+        if (startTexture.width != textureWidth || startTexture.height != textureHeight)
+        {
+            textureWidth = startTexture.width;
+            textureHeight = startTexture.height;
+            
+            JFA.GetKernelThreadGroupSizes(SeedKernel, out uint threadGroupSizeX, out uint threadGroupSizeY, out _);
+        
+            threadGroupSize.x = Mathf.CeilToInt((float)textureWidth / threadGroupSizeX);
+            threadGroupSize.y = Mathf.CeilToInt((float)textureHeight / threadGroupSizeY);
+            
+            CreateRT();
+        }
+        
+        Graphics.Blit(startTexture, rt1);
+        rt2.Release();
+        
+        FirstIteration();
+        int stepAmount = (int)Mathf.Log(Mathf.Max(textureWidth, textureHeight), 2);
+        for (int i = 0; i < stepAmount; i++)
+        {
+            int step = (int)Mathf.Pow(2, stepAmount - i - 1);
+            Flood(step);
+        }
+        FillDistance();
+
+        return resultTexture;
+    }
 
     private void FirstIteration()
     {
@@ -83,6 +113,7 @@ public class JumpFlood
 
     private void CreateRT()
     {
+        Debug.Log($"created new rendertextures");
         rt1 = new CustomRenderTexture(textureWidth, textureHeight, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear)
         {
             enableRandomWrite = true

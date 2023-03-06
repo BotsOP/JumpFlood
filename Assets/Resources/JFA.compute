@@ -29,9 +29,10 @@ void GetMinDistancePoint(float2 curPos, uint2 steps, inout float4 minInfo)
 [numthreads(32,32,1)]
 void Seed (uint2 id : SV_DispatchThreadID)
 {
-    if(_Source[id].x > 0)
+    float3 color = _Source[id].rgb;
+    if(color.r > 0 || color.g > 0 || color.b > 0)
     {
-        _Result[id] = float4((float)id.x, (float)id.y, id.x + 1, 0);
+        _Result[id] = float4((float)id.x, (float)id.y, 1, 0);
     }
 }
 
@@ -56,6 +57,7 @@ void Flood (uint2 id : SV_DispatchThreadID)
 void FillDistance (uint3 id : SV_DispatchThreadID)
 {
     float4 info = _Source[id.xy];
-    float intensity =  1-exp(-sqrt(info.w)*0.01);
+    float intensity =  exp(-sqrt(info.w)*0.1);
+    //float intensity =  1 - (distance(id.xy, info.xy) / 32);
     _Result[id.xy] = float4(intensity,intensity,intensity,1);
 }
