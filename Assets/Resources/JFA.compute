@@ -1,0 +1,61 @@
+#pragma kernel Seed
+#pragma kernel Flood
+#pragma kernel FillDistance
+
+RWTexture2D<float4> _Source;
+RWTexture2D<float4> _Result;
+int _TextureWidth;
+int _TextureHeight;
+int _Step;
+
+uint2 BoundIndex(uint2 i)
+{
+    return uint2(clamp(i.x, 0, _TextureWidth), clamp(i.y, 0, _TextureHeight));
+}
+
+void GetMinDistancePoint(float2 curPos, uint2 steps, inout float4 minInfo)
+{
+    float3 tarInfo = _Source[BoundIndex((uint2)curPos + steps)].xyz;
+    if(tarInfo.z > 0 )
+    {
+        float distance = dot(curPos - tarInfo.xy, curPos - tarInfo.xy);
+        if(distance < minInfo.w)
+        {
+            minInfo = float4( tarInfo, distance);
+        }
+    }
+}
+
+[numthreads(32,32,1)]
+void Seed (uint2 id : SV_DispatchThreadID)
+{
+    if(_Source[id].x > 0)
+    {
+        _Result[id] = float4((float)id.x, (float)id.y, id.x + 1, 0);
+    }
+}
+
+[numthreads(32,32,1)]
+void Flood (uint2 id : SV_DispatchThreadID)
+{
+    // seed position,seed ID and distance with seed
+    float4 minInfo = float4(0,0,0,999999);
+    GetMinDistancePoint(id.xy, uint2(0, 0),minInfo);
+    GetMinDistancePoint(id.xy, uint2(0, -_Step),minInfo);
+    GetMinDistancePoint(id.xy, uint2(0, _Step),minInfo);
+    GetMinDistancePoint(id.xy, uint2(-_Step, 0),minInfo);
+    GetMinDistancePoint(id.xy, uint2(_Step, 0),minInfo);
+    GetMinDistancePoint(id.xy, uint2(-_Step, -_Step),minInfo);
+    GetMinDistancePoint(id.xy, uint2(_Step, _Step),minInfo);
+    GetMinDistancePoint(id.xy, uint2(-_Step, _Step),minInfo);
+    GetMinDistancePoint(id.xy, uint2(_Step, -_Step),minInfo);
+    _Result[id.xy] = minInfo;
+}
+
+[numthreads(32,32,1)]
+void FillDistance (uint3 id : SV_DispatchThreadID)
+{
+    float4 info = _Source[id.xy];
+    float intensity =  1-exp(-sqrt(info.w)*0.01);
+    _Result[id.xy] = float4(intensity,intensity,intensity,1);
+}
